@@ -1,0 +1,17 @@
+body {
+  background: radial-gradient(circle at top, #0a0f1f, #020617);
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(0, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
+}
+
+.glow {
+  text-shadow: 0 0 10px #00ffff;
+}
