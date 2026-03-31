@@ -1,36 +1,38 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
-    "./src/**/*.{js,ts,jsx,tsx}"
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/app/**/*.{js,ts,jsx,tsx}",
+    "./src/app/apps/frontend/src/**/*.{js,ts,jsx,tsx}", // 🔥 IMPORTANT
+    "./components/**/*.{js,ts,jsx,tsx}",
   ],
 
   theme: {
     extend: {
       colors: {
-        background: "#0b1220",
-        surface: "#111827",
-        border: "#1f2937",
-        primary: "#3b82f6",
-        danger: "#ef4444",
-        success: "#22c55e"
-      },
-
-      fontFamily: {
-        mono: ["ui-monospace", "monospace"]
+        background: "#020817",
+        surface: "#0a0f1e",
+        "surface-2": "#0d1424",
+        border: "#1e293b",
+        primary: "#22d3ee",
+        "primary-dim": "#0891b2",
+        secondary: "#818cf8",
+        accent: "#a78bfa",
+        danger: "#f87171",
+        success: "#34d399",
+        warning: "#fbbf24",
       },
 
       boxShadow: {
-        card: "0 0 0 1px rgba(31,41,55,0.5)"
+        card: "0 4px 32px rgba(0, 0, 0, 0.6)",
       },
 
-      borderRadius: {
-        xl: "12px"
-      }
-    }
+      fontFamily: {
+        mono: ["ui-monospace", "SFMono-Regular", "monospace"],
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
+    },
   },
 
-  plugins: []
+  plugins: [],
 };
-
-export default config;

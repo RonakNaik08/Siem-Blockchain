@@ -16,21 +16,28 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "baseUrl": ".",
     "paths": {
-      "@/services/*": ["src/services/*"],
-      "@a/*": ["src/app/apps/frontend/src/*"]
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@a/*": [
+        "src/app/apps/frontend/src/*"
+      ]
     },
     "plugins": [
       {
         "name": "next"
       }
-    ]
+    ],
+    "target": "ES2017"
   },
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

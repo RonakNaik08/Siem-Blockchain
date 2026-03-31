@@ -1,18 +1,41 @@
-import { useEffect } from "react";
-import { useAlertStore } from "../store/alertStore";
+"use client";
+
+import { useEffect, useState } from "react";
+import { socket } from "../utils/socket";
+import toast from "react-hot-toast";
+export interface Alert {
+  type: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  message?: string;
+  ip?: string;
+  timestamp?: number;
+}
 
 export const useAlerts = () => {
-  const addAlert = useAlertStore((s: any) => s.addAlert);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  socket.on("alert:new", (alert) => {
+    if (alert.severity === "CRITICAL") {
+      toast.error(`🚨 ${alert.type}`);
+    }
+  });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      addAlert({
-        id: Date.now(),
-        message: "Suspicious activity detected",
-        severity: "high"
-      });
-    }, 15000);
+    socket.on("alert:new", (alert: Alert) => {
+      const enriched = {
+        ...alert,
+        timestamp: Date.now(),
+      };
 
-    return () => clearInterval(interval);
+      setAlerts((prev) => [enriched, ...prev.slice(0, 99)]);
+    });
+
+    return () => {
+      socket.off("alert:new");
+    };
   }, []);
+
+  return { alerts };
 };
+
+
+

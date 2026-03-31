@@ -1,9 +1,11 @@
-import { processLog } from "../services/logProcessor.js";
+import express from "express";
+import { createLog, getLogs } from "../controllers/log.controller.js";
+import { verifyLog } from "../controllers/verify.controller.js";
 
-router.post("/", async (req, res) => {
-  const { message } = req.body;
+const router = express.Router();
 
-  await processLog(message);
+router.get("/", getLogs);
+router.post("/", createLog);
+router.get("/:id/verify", verifyLog);
 
-  res.json({ success: true });
-});
+export default router;
