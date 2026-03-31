@@ -18,7 +18,8 @@ export default function AlertsPage() {
         Security Alerts
       </h2>
 
-      <AlertPanel alerts={alerts} />
+      {/* AlertPanel manages its own alert state via useAlerts() hook */}
+      <AlertPanel />
 
     </div>
   );

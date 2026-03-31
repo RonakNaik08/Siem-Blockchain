@@ -3,32 +3,76 @@
 import React, { useEffect, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 import VerifyButton from "./VerifyButton";
+import ProofModal from "../blockchain/ProofModal";
 import { socket } from "../../utils/socket";
 
 interface Log {
   id?: string;
   _id?: string;
+  // Flat fields (emitted directly from controller)
   level?: string;
   message?: string;
-  timestamp?: string;
+  timestamp?: number | string;
   verified?: boolean;
   severity?: string;
+  type?: string;
+  ip?: string;
+  hash?: string;
+  txHash?: string | null;
+  blockNumber?: number | null;
+  createdAt?: string;
+  // Nested shape (returned from REST GET /api/logs)
+  logData?: {
+    message?: string;
+    level?: string;
+    severity?: string;
+    type?: string;
+    ip?: string;
+    timestamp?: number;
+  };
 }
+
+/** Normalise both flat (socket) and nested (REST) log shapes */
+const normalize = (log: Log) => ({
+  _id: log._id || log.id || "",
+  message: log.message || log.logData?.message || "No message",
+  level: log.level || log.logData?.level || "info",
+  severity: log.severity || log.logData?.severity || "LOW",
+  type: log.type || log.logData?.type || "",
+  ip: log.ip || log.logData?.ip || null,
+  timestamp: log.timestamp || log.logData?.timestamp || (log.createdAt ? new Date(log.createdAt).getTime() : 0),
+  verified: log.verified,
+  hash: log.hash,
+  txHash: log.txHash ?? null,
+  blockNumber: log.blockNumber ?? null,
+});
 
 export default function LogTable() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [filter, setFilter] = useState<string>("ALL");
+  const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const tableRef = useRef<HTMLDivElement | null>(null);
 
-  // ✅ REAL-TIME SOCKET CONNECTION
+  // ✅ REAL-TIME: new log arrived
   useEffect(() => {
-    socket.on("log:new", (log: Log) => {
-      setLogs((prev) => [log, ...prev.slice(0, 199)]); // limit to 200 logs
-    });
-
-    return () => {
-      socket.off("log:new");
+    const onNew = (log: Log) => {
+      setLogs((prev) => [log, ...prev.slice(0, 199)]);
     };
+    socket.on("log:new", onNew);
+    return () => { socket.off("log:new", onNew); };
+  }, []);
+
+  // ⛓ REAL-TIME: blockchain confirmed — patch txHash/blockNumber into existing row
+  useEffect(() => {
+    const onConfirmed = ({ _id, txHash, blockNumber }: any) => {
+      setLogs((prev) =>
+        prev.map((l) =>
+          (l._id || l.id) === _id ? { ...l, txHash, blockNumber } : l
+        )
+      );
+    };
+    socket.on("log:confirmed", onConfirmed);
+    return () => { socket.off("log:confirmed", onConfirmed); };
   }, []);
 
   // ✅ AUTO SCROLL (new logs on top)
@@ -41,36 +85,29 @@ export default function LogTable() {
   // 🎯 LEVEL COLORS
   const getLevelColor = (level?: string) => {
     switch (level) {
-      case "error":
-        return "bg-red-500 text-white";
-      case "warn":
-        return "bg-yellow-500 text-black";
-      default:
-        return "bg-green-500 text-white";
+      case "error":  return "bg-red-500 text-white";
+      case "warn":   return "bg-yellow-500 text-black";
+      default:       return "bg-green-500 text-white";
     }
   };
 
-  // 🚨 SEVERITY COLORS (AI-based)
+  // 🚨 SEVERITY COLORS
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
-      case "CRITICAL":
-        return "text-red-500 font-bold";
-      case "HIGH":
-        return "text-orange-400";
-      case "MEDIUM":
-        return "text-yellow-400";
-      default:
-        return "text-green-400";
+      case "CRITICAL": return "text-red-500 font-bold";
+      case "HIGH":     return "text-orange-400";
+      case "MEDIUM":   return "text-yellow-400";
+      default:         return "text-green-400";
     }
   };
 
-  // 🔍 FILTER LOGS
-  const filteredLogs =
-    filter === "ALL"
-      ? logs
-      : logs.filter((log) => log.level === filter);
+  // 🔍 FILTER LOGS (normalise then filter)
+  const filtered = logs
+    .map(normalize)
+    .filter((log) => filter === "ALL" || log.level === filter);
 
   return (
+    <>
     <div className="bg-gray-900 rounded-2xl p-4 shadow-lg">
 
       {/* HEADER */}
@@ -80,7 +117,7 @@ export default function LogTable() {
         <div className="flex items-center gap-3">
           {/* LIVE INDICATOR */}
           <span className="flex items-center gap-2 text-sm text-green-400">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             LIVE
           </span>
 
@@ -110,25 +147,25 @@ export default function LogTable() {
               <th className="p-2 text-left">Message</th>
               <th className="p-2 text-left">Time</th>
               <th className="p-2 text-left">Severity</th>
+              <th className="p-2 text-center">⛓ Chain</th>
               <th className="p-2 text-center">Verify</th>
             </tr>
           </thead>
 
           <tbody>
-            {filteredLogs.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center p-4 text-gray-500">
-                  No logs available
+                <td colSpan={6} className="text-center p-4 text-gray-500">
+                  Waiting for live logs…
                 </td>
               </tr>
             ) : (
-              filteredLogs.map((log, i) => {
-                const isThreat =
-                  log.severity === "HIGH" || log.severity === "CRITICAL";
+              filtered.map((log, i) => {
+                const isThreat = log.severity === "HIGH" || log.severity === "CRITICAL";
 
                 return (
                   <tr
-                    key={log._id || log.id || i}
+                    key={log._id || i}
                     className={`border-t border-gray-800 transition ${
                       isThreat
                         ? "bg-red-900/20 hover:bg-red-900/40"
@@ -138,36 +175,45 @@ export default function LogTable() {
                     {/* LEVEL */}
                     <td className="p-2">
                       <Badge className={getLevelColor(log.level)}>
-                        {log.level || "info"}
+                        {log.level}
                       </Badge>
                     </td>
 
                     {/* MESSAGE */}
-                    <td className="p-2 font-mono text-xs break-all">
-                      {log.message || "No message"}
+                    <td className="p-2 font-mono text-xs break-all max-w-[240px] truncate" title={log.message}>
+                      {log.message}
                     </td>
 
                     {/* TIME */}
-                    <td className="p-2 text-gray-400">
+                    <td className="p-2 text-gray-400 whitespace-nowrap">
                       {log.timestamp
-                        ? new Date(log.timestamp).toLocaleTimeString()
+                        ? new Date(Number(log.timestamp)).toLocaleTimeString()
                         : "--"}
                     </td>
 
                     {/* SEVERITY */}
-                    <td className={`p-2 ${getSeverityColor(log.severity)}`}>
-                      {log.severity || "LOW"}
+                    <td className={`p-2 font-semibold ${getSeverityColor(log.severity)}`}>
+                      {log.severity}
+                    </td>
+
+                    {/* CHAIN STATUS */}
+                    <td className="p-2 text-center">
+                      {log.txHash ? (
+                        <button
+                          onClick={() => setSelectedLog(log as any)}
+                          className="text-blue-400 text-xs hover:underline"
+                          title={`Block #${log.blockNumber}`}
+                        >
+                          #{log.blockNumber}
+                        </button>
+                      ) : (
+                        <span className="text-gray-600 text-xs animate-pulse">⏳</span>
+                      )}
                     </td>
 
                     {/* VERIFY */}
                     <td className="p-2 text-center">
-                      {log.verified === undefined ? (
-                        <VerifyButton log={log} />
-                      ) : log.verified ? (
-                        <span className="text-green-400">✔</span>
-                      ) : (
-                        <span className="text-red-500">✖</span>
-                      )}
+                      <VerifyButton log={log} />
                     </td>
                   </tr>
                 );
@@ -179,16 +225,22 @@ export default function LogTable() {
 
       {/* FOOTER STATS */}
       <div className="flex justify-between mt-3 text-xs text-gray-400">
-        <span>Total Logs: {logs.length}</span>
+        <span>Total: {logs.length}</span>
         <span>
           Threats:{" "}
-          {
-            logs.filter(
-              (l) => l.severity === "HIGH" || l.severity === "CRITICAL"
-            ).length
-          }
+          {logs.map(normalize).filter((l) => l.severity === "HIGH" || l.severity === "CRITICAL").length}
+        </span>
+        <span>
+          On-chain:{" "}
+          {logs.filter((l) => l.txHash).length} / {logs.length}
         </span>
       </div>
     </div>
+
+    {/* BLOCKCHAIN PROOF MODAL */}
+    {selectedLog && (
+      <ProofModal log={selectedLog} onClose={() => setSelectedLog(null)} />
+    )}
+    </>
   );
 }

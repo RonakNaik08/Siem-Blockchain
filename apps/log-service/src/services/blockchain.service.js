@@ -1,6 +1,2 @@
-export const storeHashOnChain = async (hash) => {
-    return {
-      txHash: "dummy_tx_hash",
-      blockNumber: 123
-    };
-  };
+// Re-export from the real blockchain connector
+export { storeHashOnChain, getHashFromChain } from "../blockchain.js";

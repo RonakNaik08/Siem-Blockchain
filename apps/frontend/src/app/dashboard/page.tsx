@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import StatsCards from "../../components/charts/StatsCards"; 
-import LogPanel from "../../components/dashboard/LogPanel"; 
+import StatsCards from "../../components/charts/StatsCards";
 import AlertPane from "../../components/alerts/AlertPanel";
- import { useWallet } from "../../hooks/useWallet";
-  import { useSocket } from "../../hooks/useSocket"; 
-
-
+import LogTable from "../../components/logs/LogTable";
+import { useWallet } from "../../hooks/useWallet";
+import { useSocket } from "../../hooks/useSocket";
 
 export default function DashboardPage() {
 
@@ -16,7 +14,7 @@ export default function DashboardPage() {
   // 🦊 Wallet
   const { account, connectWallet } = useWallet();
 
-  // 🔌 Real-time socket
+  // 🔌 Real-time socket - keep dashboard stats in sync
   useSocket((data: any) => {
     setLogs((prev) => [data, ...prev.slice(0, 199)]);
   });
@@ -70,9 +68,8 @@ export default function DashboardPage() {
         {/* LEFT SIDE (LOGS) */}
         <div className="col-span-8 space-y-6">
 
-          {/* LOG TABLE (REAL-TIME) */}
-          <div>LogTable component is missing. Please implement or import it.</div>
-
+          {/* LOG TABLE (REAL-TIME via Socket.IO) */}
+          <LogTable />
         </div>
 
         {/* RIGHT SIDE (ALERTS + RISK) */}
@@ -126,5 +123,7 @@ export default function DashboardPage() {
 
       </div>
     </div>
+
   );
+
 }

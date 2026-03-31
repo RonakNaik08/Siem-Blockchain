@@ -1,6 +1,5 @@
 import crypto from "crypto";
-import { contract } from "../blockchain.js";
-import axios from "axios";
+import { storeHashOnChain } from "../blockchain.js";
 
 export const processLog = async (logMessage) => {
   try {
@@ -14,19 +13,11 @@ export const processLog = async (logMessage) => {
       .digest("hex");
 
     // 3️⃣ store in blockchain
-    const tx = await contract.storeLog(logId, hash);
-    await tx.wait();
+    const { txHash, blockNumber } = await storeHashOnChain(logId, hash);
 
-    console.log("✅ Stored on blockchain:", logId);
+    console.log(`✅ Stored on blockchain: logId=${logId} block=${blockNumber} tx=${txHash.slice(0, 10)}...`);
 
-    // 4️⃣ send to API gateway (WebSocket trigger)
-    await axios.post("http://localhost:4000/logs", {
-      id: logId,
-      message: logMessage,
-      hash,
-    });
-
-    return { logId, hash };
+    return { logId, hash, txHash, blockNumber };
 
   } catch (err) {
     console.error("❌ Error processing log:", err);

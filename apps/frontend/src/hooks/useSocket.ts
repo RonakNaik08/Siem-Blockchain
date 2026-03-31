@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { socket } from "../utils/socket";
 
-export const useSocket = (onMessage: any) => {
+/**
+ * Subscribe to real-time "log:new" events from the Socket.IO server.
+ * Uses the shared singleton in utils/socket.ts (connects to NEXT_PUBLIC_SOCKET_URL).
+ */
+export const useSocket = (onNewLog: (log: any) => void) => {
+  // stable ref so we don't add/remove the listener on every render
+  const cbRef = useRef(onNewLog);
+  cbRef.current = onNewLog;
+
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:4000");
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      onMessage(data);
+    const handler = (log: any) => cbRef.current(log);
+    socket.on("log:new", handler);
+    return () => {
+      socket.off("log:new", handler);
     };
-
-    return () => ws.close();
   }, []);
 };

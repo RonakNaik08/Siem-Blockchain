@@ -1,0 +1,42 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": false, "internalType": "string", "name": "logId", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "hash",  "type": "string" },
+      { "indexed": false, "internalType": "uint256","name": "timestamp","type": "uint256" }
+    ],
+    "name": "LogStored",
+    "type": "event"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "logId", "type": "string" }],
+    "name": "getLog",
+    "outputs": [
+      { "internalType": "string",  "name": "", "type": "string"  },
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "logId", "type": "string" },
+      { "internalType": "string", "name": "hash",  "type": "string" }
+    ],
+    "name": "storeLog",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "logId", "type": "string" },
+      { "internalType": "string", "name": "hash",  "type": "string" }
+    ],
+    "name": "verifyLog",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

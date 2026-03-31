@@ -53,20 +53,46 @@ export const createLog = async (req, res) => {
     }
     if (!logData.severity) logData.severity = severity;
     if (!logData.level)    logData.level    = level;
+    if (!logData.timestamp) logData.timestamp = Date.now();
 
     const hash = generateHash(logData);
     const saved = await Log.create({ logData, hash, verified: true });
 
+    // Flatten log for real-time emission (UI expects flat structure)
+    const emitPayload = {
+      _id: saved._id.toString(),
+      message: logData.message || "",
+      level: logData.level || "info",
+      severity: logData.severity || "LOW",
+      type: logData.type || "",
+      ip: logData.ip || null,
+      requests: logData.requests || null,
+      timestamp: logData.timestamp,
+      verified: true,
+      hash,
+      txHash: null,
+      blockNumber: null,
+      createdAt: saved.createdAt,
+    };
+
+    const io = req.app.get("io");
+    if (io) io.emit("log:new", emitPayload);
+
     // Store hash on blockchain (non-blocking, best-effort)
     storeHashOnChain(saved._id.toString(), hash)
-      .then(({ txHash, blockNumber }) =>
-        Log.findByIdAndUpdate(saved._id, { txHash, blockNumber }).exec()
-      )
-      .catch((err) => console.warn("Blockchain storage skipped:", err.message));
-
-    // Emit real-time event
-    const io = req.app.get("io");
-    if (io) io.emit("log:new", saved);
+      .then(({ txHash, blockNumber }) => {
+        Log.findByIdAndUpdate(saved._id, { txHash, blockNumber }).exec();
+        // Notify frontend of blockchain confirmation
+        if (io) {
+          io.emit("log:confirmed", {
+            _id: saved._id.toString(),
+            txHash,
+            blockNumber,
+          });
+        }
+        console.log(`⛓  Chain confirmed: block=${blockNumber} tx=${txHash.slice(0,10)}...`);
+      })
+      .catch((err) => console.warn("⚠ Blockchain storage skipped:", err.message));
 
     // Brute-force alert check
     checkBruteForce(logData.ip, logData.type, io);
