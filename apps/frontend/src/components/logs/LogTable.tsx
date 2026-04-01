@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Badge from "../ui/Badge";
 import VerifyButton from "./VerifyButton";
 import ProofModal from "../blockchain/ProofModal";
-import { socket } from "../../lib/socket";
+import { getSocket } from "../../lib/socket"; // ✅ FIXED
 
 interface Log {
   id?: string;
@@ -31,7 +31,7 @@ interface Log {
   };
 }
 
-// 🔥 NORMALIZER (FIXED)
+// 🔥 NORMALIZER
 const normalize = (log: Log) => ({
   id: log.id || log._id || "",
   message: log.message || log.logData?.message || "No message",
@@ -55,15 +55,19 @@ export default function LogTable({ logs: externalLogs = [] }: { logs?: Log[] }) 
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const tableRef = useRef<HTMLDivElement | null>(null);
 
-  // 🔥 ALWAYS STORE NORMALIZED LOGS
+  // ✅ Sync external logs
   useEffect(() => {
     const normalized = externalLogs.map(normalize);
     setLogs(normalized);
   }, [externalLogs]);
 
-  // 🔥 SOCKET FALLBACK (SAFE)
+  // 🔥 SOCKET LISTENER (FIXED)
   useEffect(() => {
+    const socket = getSocket(); // ✅ IMPORTANT
+
     const onNew = (raw: Log) => {
+      console.log("📥 Table received log:", raw);
+
       const log = normalize(raw);
 
       setLogs((prev) => {
@@ -79,14 +83,14 @@ export default function LogTable({ logs: externalLogs = [] }: { logs?: Log[] }) 
     };
   }, []);
 
-  // ⛓ BLOCKCHAIN UPDATE
+  // ⛓ BLOCKCHAIN UPDATE (FIXED)
   useEffect(() => {
+    const socket = getSocket(); // ✅ IMPORTANT
+
     const onConfirmed = ({ _id, txHash, blockNumber }: any) => {
       setLogs((prev) =>
         prev.map((l) =>
-          l.id === _id
-            ? { ...l, txHash, blockNumber }
-            : l
+          l.id === _id ? { ...l, txHash, blockNumber } : l
         )
       );
     };
@@ -137,7 +141,6 @@ export default function LogTable({ logs: externalLogs = [] }: { logs?: Log[] }) 
   return (
     <>
       <div className="bg-gray-900 rounded-2xl p-4 shadow-lg">
-
         {/* HEADER */}
         <div className="flex justify-between mb-3 items-center">
           <h2 className="text-lg font-semibold">Live Logs</h2>

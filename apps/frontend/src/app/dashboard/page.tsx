@@ -5,16 +5,17 @@ import StatsCards from "../../components/charts/StatsCards";
 import AlertPane from "../../components/alerts/AlertPanel";
 import LogTable from "../../components/logs/LogTable";
 import { useWallet } from "../../hooks/useWallet";
-import { socket } from "../../lib/socket";
+import { getSocket } from "../../lib/socket"; // ✅ FIXED
 
-// 🔥 TYPES
+// TYPES
 type Log = {
-  id?: string;
-  severity?: string;
-  level?: string;
-  message?: string;
-  source_ip?: string;
-  timestamp?: string | number;
+  id: string;
+  severity: string;
+  level: string;
+  message: string;
+  source_ip: string;
+  timestamp: string | number;
+  threat?: string | null;
 };
 
 type Alert = {
@@ -26,18 +27,15 @@ type Alert = {
   timestamp: string;
 };
 
-// 🔥 NORMALIZER (FINAL FIX)
+// NORMALIZER
 const normalizeLog = (log: any): Log => ({
-  id: log.id || log._id,
-  severity: log.severity || log.logData?.severity || "LOW",
-  level: log.level || log.logData?.level || "info", // ✅ ADDED
-  message: log.message || log.logData?.message || "No message",
-  source_ip: log.source_ip || log.ip || "unknown",
-  timestamp:
-    log.timestamp ||
-    log.logData?.timestamp ||
-    log.createdAt ||
-    Date.now(),
+  id: log.id || `${Date.now()}-${Math.random()}`,
+  severity: log.severity || (log.threat ? "HIGH" : "LOW"),
+  level: log.level || "info",
+  message: log.message || "No message",
+  source_ip: log.source_ip || "unknown",
+  timestamp: log.timestamp || Date.now(),
+  threat: log.threat || null,
 });
 
 export default function DashboardPage() {
@@ -47,8 +45,9 @@ export default function DashboardPage() {
 
   const { account, connectWallet } = useWallet();
 
-  // 🔥 SOCKET HANDLING
   useEffect(() => {
+    const socket = getSocket(); // 🔥 SINGLE INSTANCE
+
     const onConnect = () => {
       console.log("✅ Socket connected");
       setConnected(true);
@@ -59,36 +58,40 @@ export default function DashboardPage() {
       setConnected(false);
     };
 
-    // 🔥 FINAL LOG HANDLER (CLEAN)
-    const onNewLog = (rawLog: any) => {
-      const log = normalizeLog(rawLog);
+    const onNewLog = (rawData: any) => {
+      console.log("📥 Incoming log:", rawData);
+
+      const log = normalizeLog(rawData);
 
       setLogs((prev) => {
-        if (!log.id) return prev;
-
-        if (prev.find((l) => l.id === log.id)) {
-          return prev;
-        }
-
+        if (prev.some((l) => l.id === log.id)) return prev;
         return [log, ...prev.slice(0, 199)];
       });
+
+      if (log.threat) {
+        const alert: Alert = {
+          id: log.id,
+          type: log.threat,
+          severity: "HIGH",
+          message: log.message,
+          source_ip: log.source_ip,
+          timestamp: new Date().toISOString(),
+        };
+
+        setAlerts((prev) => [alert, ...prev.slice(0, 49)]);
+      }
     };
 
-    // 🚨 ALERT STREAM
-    const onNewAlert = (alert: Alert) => {
-      setAlerts((prev) => [alert, ...prev.slice(0, 49)]);
-    };
-
+    // ✅ REGISTER EVENTS
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("new_log", onNewLog);
-    socket.on("new_alert", onNewAlert);
 
+    // 🧹 CLEANUP
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("new_log", onNewLog);
-      socket.off("new_alert", onNewAlert);
     };
   }, []);
 
@@ -102,16 +105,19 @@ export default function DashboardPage() {
             <span className="text-primary">▦</span> Security Overview
           </h1>
           <p className="text-xs text-slate-500">
-            Real-time SIEM • Blockchain Integrity • Threat Detection
+            Real-time SIEM • Kafka • Socket.IO • Threat Detection
           </p>
         </div>
 
         <div className="flex items-center gap-3">
 
-          {/* CONNECTION */}
+          {/* CONNECTION STATUS */}
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium
-            ${connected ? "badge-green" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}
+            ${connected
+              ? "badge-green"
+              : "bg-red-500/10 text-red-400 border border-red-500/30"
+            }`}
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -138,7 +144,7 @@ export default function DashboardPage() {
       {/* STATS */}
       <StatsCards logs={logs} />
 
-      {/* GRID */}
+      {/* MAIN GRID */}
       <div className="grid grid-cols-12 gap-6">
 
         {/* LEFT */}
@@ -148,11 +154,9 @@ export default function DashboardPage() {
 
         {/* RIGHT */}
         <div className="col-span-4 space-y-6">
-
-          {/* ALERTS */}
           <AlertPane logs={logs} alerts={alerts} />
 
-          {/* RISK */}
+          {/* RISK ANALYSIS */}
           <div className="card p-4 space-y-3">
             <h2 className="text-sm font-semibold text-slate-300">
               Risk Analysis
@@ -196,7 +200,7 @@ export default function DashboardPage() {
                   </div>
 
                   <p className="text-xs text-slate-500">
-                    Based on live activity
+                    Based on real-time stream
                   </p>
                 </div>
               );
