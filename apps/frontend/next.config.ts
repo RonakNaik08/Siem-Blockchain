@@ -3,23 +3,27 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // Enable modern optimizations
+  // ✅ FIX: turbopack root (VERY IMPORTANT)
+  turbopack: {
+    root: __dirname,
+  },
+
+  // ✅ modern optimization (keep this)
   experimental: {
-    turbo: true,
-    optimizePackageImports: ["lucide-react"]
+    optimizePackageImports: ["lucide-react"],
   },
 
-  // Image optimization (useful later for dashboards)
+  // Image optimization
   images: {
-    domains: ["localhost"]
+    domains: ["localhost"],
   },
 
-  // Environment variables (safe exposure)
+  // Env variables
   env: {
-    NEXT_PUBLIC_APP_NAME: "SIEM Dashboard"
+    NEXT_PUBLIC_APP_NAME: "SIEM Dashboard",
   },
 
-  // Headers (security best practices)
+  // Security headers
   async headers() {
     return [
       {
@@ -27,16 +31,16 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "SAMEORIGIN"
+            value: "SAMEORIGIN",
           },
           {
             key: "X-Content-Type-Options",
-            value: "nosniff"
-          }
-        ]
-      }
+            value: "nosniff",
+          },
+        ],
+      },
     ];
-  }
+  },
 };
 
 export default nextConfig;

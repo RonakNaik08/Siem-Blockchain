@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import AlertCard from "./AlertCard";
 import { useAlerts } from "../../hooks/useAlerts";
 
-export default function AlertsPanel() {
+export default function AlertPanel({ logs }: { logs: any[] })  {
   const { alerts } = useAlerts();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 

@@ -1,8 +1,6 @@
 import crypto from "crypto";
 
-export const generateHash = (log) => {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(log))
-    .digest("hex");
-};
+export function generateHash(log) {
+  const data = JSON.stringify(log);
+  return crypto.createHash("sha256").update(data).digest("hex");
+}

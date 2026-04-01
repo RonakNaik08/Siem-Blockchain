@@ -1,1 +1,3 @@
 {"level":"info","message":{"method":"GET","url":"/api/logs"}}
+{"level":"info","message":{"method":"POST","url":"/api/logs"}}
+{"level":"info","message":{"method":"POST","url":"/api/logs"}}

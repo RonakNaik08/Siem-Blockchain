@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { socket } from "../utils/socket";
+import { socket } from "../lib/socket"; // Update the path to the correct location of the socket module
 import toast from "react-hot-toast";
 export interface Alert {
   type: string;
