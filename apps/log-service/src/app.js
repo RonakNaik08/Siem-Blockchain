@@ -2,6 +2,8 @@ import express from "express";
 import http from "http";
 import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
+import blockchainRoutes from "./routes/blockchain.routes.js";
+
 
 // CONFIG
 import { connectDB } from "./config/db.js";
@@ -39,7 +41,7 @@ app.use((req, res, next) => {
   next();
 });
 
-
+app.use("/blockchain", blockchainRoutes);
 // =====================================================
 // 🔥 MAIN LOG INGESTION ROUTE (KAFKA + REAL-TIME)
 // =====================================================
