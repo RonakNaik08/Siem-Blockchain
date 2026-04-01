@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/ronak/Desktop/bt-mini-project/splunk/src/app/apps/blockchain/contracts/LogIntegrity.sol": {
-      "lastModificationDate": 1774935447000,
-      "contentHash": "6d10f36358103ec2e4b52008ab15b430",
+      "lastModificationDate": 1775044025800,
+      "contentHash": "051791c140f85f86e9643ca681a01084",
       "sourceName": "contracts/LogIntegrity.sol",
       "solcConfig": {
         "version": "0.8.20",
