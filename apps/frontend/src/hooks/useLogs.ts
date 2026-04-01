@@ -1,13 +1,18 @@
-"use client";
-
-import { useEffect } from "react";
-import { api } from "../services/api";
-import { useLogStore } from "../store/logStore";
+import { useEffect, useState } from "react";
+import { socket } from "../lib/socket";
 
 export const useLogs = () => {
-  const setLogs = useLogStore((s: any) => s.setLogs);
+  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    api.getLogs().then(setLogs);
+    socket.on("new-log", (log) => {
+      setLogs((prev) => [log, ...prev]);
+    });
+
+    return () => {
+      socket.off("new-log");
+    };
   }, []);
+
+  return logs;
 };

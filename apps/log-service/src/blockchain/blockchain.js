@@ -1,12 +1,13 @@
 import { Block } from "./block.js";
 import { buildMerkleRoot } from "./merkleTree.js";
 import { verifyChain } from "./verifier.js";
+import { storeMerkleRoot } from "./blockchainClient.js"; // 👈 NEW
 
 export class Blockchain {
   constructor() {
     this.chain = [this.createGenesisBlock()];
     this.pendingLogs = [];
-    this.blockSize = 5; // adjust if needed
+    this.blockSize = 5;
   }
 
   createGenesisBlock() {
@@ -19,24 +20,50 @@ export class Blockchain {
     return this.chain[this.chain.length - 1];
   }
 
-  addLog(log) {
+  /**
+   * Add log to buffer
+   */
+  async addLog(log) {
     this.pendingLogs.push(log);
 
     if (this.pendingLogs.length >= this.blockSize) {
-      return this.createBlock();
+      return await this.createBlock(); // 👈 async now
     }
+
     return null;
   }
 
-  createBlock() {
+  /**
+   * Create block + Merkle root + store on blockchain
+   */
+  async createBlock() {
+    const logs = this.pendingLogs;
+
+    // ✅ IMPORTANT: use hashes, not raw logs
+    const hashes = logs.map((l) => l.hash);
+
+    const merkleRoot = buildMerkleRoot(hashes);
+
     const newBlock = new Block(
       this.chain.length,
-      this.pendingLogs,
+      logs,
       this.getLatestBlock().hash
     );
 
-    const merkleRoot = buildMerkleRoot(this.pendingLogs);
     newBlock.finalize(merkleRoot);
+
+    // 🔥 STORE ROOT ON BLOCKCHAIN
+    let txHash = null;
+    try {
+      txHash = await storeMerkleRoot(merkleRoot);
+      console.log("✅ Stored on blockchain:", txHash);
+    } catch (err) {
+      console.error("❌ Blockchain store failed:", err.message);
+    }
+
+    // attach metadata
+    newBlock.txHash = txHash;
+    newBlock.timestamp = Date.now();
 
     this.chain.push(newBlock);
     this.pendingLogs = [];
@@ -44,6 +71,9 @@ export class Blockchain {
     return newBlock;
   }
 
+  /**
+   * Full chain validation
+   */
   isValid() {
     return verifyChain(this.chain);
   }

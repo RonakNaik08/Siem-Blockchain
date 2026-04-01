@@ -1,13 +1,20 @@
 import Log from "../models/log.model.js";
-import { generateHash } from "../utils/hash.util.js";
 
-// ✅ NEW blockchain import (internal system)
+// ❌ REMOVE THIS (weak hashing)
+// import { generateHash } from "../utils/hash.util.js";
+
+// ✅ USE HASH CHAIN
+import { createLogWithHash } from "../services/hashChain.service.js";
+
+// ✅ INTERNAL BLOCKCHAIN
 import { addLog } from "../blockchain/index.js";
 
-// OPTIONAL: keep if you're using Ethereum
+// OPTIONAL Ethereum
 import { storeHashOnChain } from "../blockchain.js";
 
-// In-memory brute-force tracker
+// -------------------------------
+// 🚨 BRUTE FORCE TRACKER
+// -------------------------------
 const tracker = new Map();
 const BRUTE_THRESHOLD = 5;
 const BRUTE_WINDOW_MS = 30_000;
@@ -47,12 +54,15 @@ const checkBruteForce = (ip, type, io) => {
   }
 };
 
+// -------------------------------
+// 🚀 CREATE LOG (MAIN FUNCTION)
+// -------------------------------
 export const createLog = async (req, res) => {
   try {
     const logData = { ...req.body };
 
     // -------------------------------
-    // 🔐 ENRICH LOG (SIEM LOGIC)
+    // 🔐 ENRICH LOG
     // -------------------------------
     const type = logData.type || "";
     let severity = "LOW";
@@ -76,45 +86,48 @@ export const createLog = async (req, res) => {
     if (!logData.timestamp) logData.timestamp = Date.now();
 
     // -------------------------------
-    // 🔐 HASH LOG
+    // 🔐 HASH CHAIN (FIXED)
     // -------------------------------
-    const hash = generateHash(logData);
+    const chainedLog = createLogWithHash(logData);
 
+    // -------------------------------
+    // 💾 SAVE DB
+    // -------------------------------
     const saved = await Log.create({
       logData,
-      hash,
+      hash: chainedLog.hash,
+      prevHash: chainedLog.prevHash,
       verified: true
     });
 
     // -------------------------------
-    // ⚡ REAL-TIME EMIT (UI)
+    // ⚡ REAL-TIME EMIT (FIXED)
     // -------------------------------
     const emitPayload = {
-      _id: saved._id.toString(),
+      id: saved._id.toString(), // ✅ IMPORTANT
       message: logData.message || "",
       level: logData.level,
       severity: logData.severity,
-      type: logData.type,
-      ip: logData.ip || null,
-      requests: logData.requests || null,
+      source_ip: logData.ip || "unknown",
       timestamp: logData.timestamp,
-      verified: true,
-      hash,
-      txHash: null,
-      blockNumber: null,
-      createdAt: saved.createdAt
+      hash: chainedLog.hash,
+      prevHash: chainedLog.prevHash
     };
 
     const io = req.app.get("io");
-    if (io) io.emit("log:new", emitPayload);
+
+    if (io) {
+      console.log("📤 Emitting log:", emitPayload); // 🔥 DEBUG
+      io.emit("new-log", emitPayload); // ✅ FIXED EVENT NAME
+    }
 
     // -------------------------------
-    // 🔗 NEW: INTERNAL BLOCKCHAIN
+    // 🔗 INTERNAL BLOCKCHAIN (FIXED)
     // -------------------------------
-    const blockchainResult = addLog(logData, io);
+    const blockchainResult = await addLog(chainedLog, io);
 
-    // If tampering detected → emit alert
-    if (blockchainResult.tamperAlert?.alert && io) {
+    // 🚨 Tamper alert fix
+    if (blockchainResult.tamperAlert?.isTampered && io) {
       io.emit("alert:new", {
         id: Date.now().toString(),
         type: "BLOCKCHAIN_TAMPER",
@@ -125,9 +138,9 @@ export const createLog = async (req, res) => {
     }
 
     // -------------------------------
-    // ⛓ OPTIONAL: ETHEREUM STORAGE
+    // ⛓ OPTIONAL ETHEREUM
     // -------------------------------
-    storeHashOnChain(saved._id.toString(), hash)
+    storeHashOnChain(saved._id.toString(), chainedLog.hash)
       .then(({ txHash, blockNumber }) => {
         Log.findByIdAndUpdate(saved._id, {
           txHash,
@@ -136,22 +149,22 @@ export const createLog = async (req, res) => {
 
         if (io) {
           io.emit("log:confirmed", {
-            _id: saved._id.toString(),
+            id: saved._id.toString(),
             txHash,
             blockNumber
           });
         }
 
         console.log(
-          `⛓ Chain confirmed: block=${blockNumber} tx=${txHash.slice(0, 10)}...`
+          `⛓ Chain confirmed: block=${blockNumber} tx=${txHash?.slice(0, 10)}...`
         );
       })
       .catch((err) =>
-        console.warn("⚠ Blockchain (external) skipped:", err.message)
+        console.warn("⚠ Blockchain skipped:", err.message)
       );
 
     // -------------------------------
-    // 🚨 BRUTE FORCE DETECTION
+    // 🚨 BRUTE FORCE
     // -------------------------------
     checkBruteForce(logData.ip, logData.type, io);
 
@@ -160,11 +173,16 @@ export const createLog = async (req, res) => {
       blockchain: blockchainResult,
       data: saved
     });
+
   } catch (err) {
+    console.error("❌ ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
+// -------------------------------
+// 📥 GET LOGS
+// -------------------------------
 export const getLogs = async (req, res) => {
   try {
     const logs = await Log.find()

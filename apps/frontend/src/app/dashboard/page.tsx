@@ -5,7 +5,7 @@ import StatsCards from "../../components/charts/StatsCards";
 import AlertPane from "../../components/alerts/AlertPanel";
 import LogTable from "../../components/logs/LogTable";
 import { useWallet } from "../../hooks/useWallet";
-import { getSocket } from "../../lib/socket"; // ✅ FIXED
+import { getSocket } from "../../lib/socket";
 
 // TYPES
 type Log = {
@@ -16,6 +16,11 @@ type Log = {
   source_ip: string;
   timestamp: string | number;
   threat?: string | null;
+
+  // 🔥 NEW FIELDS
+  hash: string;
+  prevHash: string;
+  verified?: boolean;
 };
 
 type Alert = {
@@ -36,6 +41,11 @@ const normalizeLog = (log: any): Log => ({
   source_ip: log.source_ip || "unknown",
   timestamp: log.timestamp || Date.now(),
   threat: log.threat || null,
+
+  // 🔥 blockchain fields
+  hash: log.hash || "N/A",
+  prevHash: log.prevHash || "N/A",
+  verified: true, // default
 });
 
 export default function DashboardPage() {
@@ -45,8 +55,21 @@ export default function DashboardPage() {
 
   const { account, connectWallet } = useWallet();
 
+  // 🔥 VERIFY CHAIN FUNCTION
+  const verifyChain = (logs: Log[]) => {
+    return logs.map((log, i) => {
+      if (i === logs.length - 1) return { ...log, verified: true };
+
+      const prev = logs[i + 1];
+
+      const valid = log.prevHash === prev.hash;
+
+      return { ...log, verified: valid };
+    });
+  };
+
   useEffect(() => {
-    const socket = getSocket(); // 🔥 SINGLE INSTANCE
+    const socket = getSocket();
 
     const onConnect = () => {
       console.log("✅ Socket connected");
@@ -64,10 +87,13 @@ export default function DashboardPage() {
       const log = normalizeLog(rawData);
 
       setLogs((prev) => {
-        if (prev.some((l) => l.id === log.id)) return prev;
-        return [log, ...prev.slice(0, 199)];
+        const updated = [log, ...prev.slice(0, 199)];
+
+        // 🔥 VERIFY CHAIN HERE
+        return verifyChain(updated);
       });
 
+      // 🚨 ALERT LOGIC
       if (log.threat) {
         const alert: Alert = {
           id: log.id,
@@ -82,16 +108,15 @@ export default function DashboardPage() {
       }
     };
 
-    // ✅ REGISTER EVENTS
+    // ✅ EVENTS (FIXED NAME)
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("new_log", onNewLog);
+    socket.on("new-log", onNewLog); // 🔥 FIXED
 
-    // 🧹 CLEANUP
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("new_log", onNewLog);
+      socket.off("new-log", onNewLog);
     };
   }, []);
 
@@ -105,13 +130,13 @@ export default function DashboardPage() {
             <span className="text-primary">▦</span> Security Overview
           </h1>
           <p className="text-xs text-slate-500">
-            Real-time SIEM • Kafka • Socket.IO • Threat Detection
+            Tamper-Proof SIEM • Blockchain • Real-time Logs
           </p>
         </div>
 
         <div className="flex items-center gap-3">
 
-          {/* CONNECTION STATUS */}
+          {/* CONNECTION */}
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium
             ${connected
@@ -149,58 +174,86 @@ export default function DashboardPage() {
 
         {/* LEFT */}
         <div className="col-span-8 space-y-6">
-          <LogTable logs={logs} />
+
+          {/* 🔥 LOG TABLE WITH STATUS */}
+          <div className="card p-4">
+            <h2 className="text-sm font-semibold text-slate-300 mb-3">
+              Logs (Integrity View)
+            </h2>
+
+            <div className="space-y-2 max-h-[500px] overflow-y-auto">
+              {logs.map((log, i) => (
+                <div
+                  key={i}
+                  className="border border-slate-700 p-3 rounded-md text-xs space-y-1"
+                >
+                  <div className="flex justify-between">
+                    <span className="text-slate-300">{log.message}</span>
+
+                    {/* 🔥 STATUS BADGE */}
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-semibold
+                      ${log.verified
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-red-500/10 text-red-400"
+                      }`}
+                    >
+                      {log.verified ? "✔ Verified" : "⚠ Tampered"}
+                    </span>
+                  </div>
+
+                  <p className="text-slate-500">
+                    {log.source_ip} • {new Date(log.timestamp).toLocaleTimeString()}
+                  </p>
+
+                  {/* 🔥 HASH INFO */}
+                  <p className="text-purple-400 break-all">
+                    Hash: {log.hash.slice(0, 20)}...
+                  </p>
+                  <p className="text-slate-600 break-all">
+                    Prev: {log.prevHash.slice(0, 20)}...
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* RIGHT */}
         <div className="col-span-4 space-y-6">
           <AlertPane logs={logs} alerts={alerts} />
 
-          {/* RISK ANALYSIS */}
+          {/* RISK */}
           <div className="card p-4 space-y-3">
             <h2 className="text-sm font-semibold text-slate-300">
               Risk Analysis
             </h2>
 
             {(() => {
-              const highCount = logs.filter(
-                (l) =>
-                  l.severity === "HIGH" ||
-                  l.severity === "CRITICAL"
-              ).length;
+              const tampered = logs.filter(l => !l.verified).length;
 
-              const isHigh = highCount > 5;
-              const isMedium = !isHigh && logs.length > 5;
+              const label =
+                tampered > 3
+                  ? "🚨 Integrity Breach"
+                  : tampered > 0
+                  ? "⚠ Suspicious"
+                  : "✅ Secure";
 
-              const label = isHigh
-                ? "High Risk"
-                : isMedium
-                ? "Medium Risk"
-                : "Low Risk";
-
-              const color = isHigh
-                ? "text-red-500"
-                : isMedium
-                ? "text-yellow-400"
-                : "text-green-400";
-
-              const pct = Math.min(logs.length * 5, 100);
+              const color =
+                tampered > 3
+                  ? "text-red-500"
+                  : tampered > 0
+                  ? "text-yellow-400"
+                  : "text-green-400";
 
               return (
-                <div className="space-y-2">
-                  <p className={`text-2xl font-bold ${color}`}>
+                <div>
+                  <p className={`text-xl font-bold ${color}`}>
                     {label}
                   </p>
-
-                  <div className="w-full bg-gray-800 h-1.5 rounded">
-                    <div
-                      className="bg-purple-500 h-1.5 rounded"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-
                   <p className="text-xs text-slate-500">
-                    Based on real-time stream
+                    Based on hash-chain validation
                   </p>
                 </div>
               );

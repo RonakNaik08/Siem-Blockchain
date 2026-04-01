@@ -1,31 +1,32 @@
 import { normalizeLog } from "../utils/normalize.util.js";
-import { generateHash } from "../utils/hash.util.js";
-import { storeHashOnChain } from "./blockchain.service.js";
+import { createLogWithHash } from "./hashChain.service.js";
+import { addToBatch } from "./batch.service.js";
 import { emitLog } from "../websocket/socket.server.js";
 
 export async function processLog(rawLog) {
-  // ✅ normalize
-  const log = normalizeLog(rawLog);
+  // ✅ 1. Normalize
+  const normalized = normalizeLog(rawLog);
 
-  // ✅ generate hash
-  const hash = generateHash(log);
+  // ✅ 2. Apply HASH CHAIN (IMPORTANT)
+  const log = createLogWithHash(normalized);
 
-  // ✅ store in DB (you already do this)
+  // ✅ 3. Store in DB (uncomment when ready)
   // await LogModel.create(log);
 
-  // ✅ blockchain
-  await storeHashOnChain(hash);
+  // ✅ 4. Send to batch → Merkle → Blockchain
+  await addToBatch(log);
 
-  // 🔥🔥🔥 THIS IS THE MISSING PIECE
+  // ✅ 5. Emit to UI (real-time)
   emitLog({
     id: log._id || log.id,
-    severity: log.severity || log.logData?.severity || "LOW",
-    level: log.level || log.logData?.level || "info",
-    message: log.message || log.logData?.message || "No message",
-    timestamp: log.timestamp || log.logData?.timestamp,
-    source_ip: log.source_ip || log.ip || "unknown",
-    hash,
+    severity: log.severity || "LOW",
+    level: log.level || "info",
+    message: log.message || "No message",
+    timestamp: log.timestamp,
+    source_ip: log.source_ip || "unknown",
+    hash: log.hash,
+    prevHash: log.prevHash, // 🔥 IMPORTANT for UI/debug
   });
 
-  return { log, hash };
+  return log;
 }

@@ -3,31 +3,43 @@ import { detectTampering } from "./tamperDetector.js";
 
 const blockchain = new Blockchain();
 
-export function addLog(log, io = null) {
-  const newBlock = blockchain.addLog(log);
+/**
+ * Add log → create block → check tampering → emit events
+ */
+export async function addLog(log, io = null) {
+  // 🔥 FIX: await because createBlock is async
+  const newBlock = await blockchain.addLog(log);
 
-  const result = detectTampering(blockchain);
+  // ✅ FIX: pass chain, not blockchain object
+  const chain = blockchain.getChain();
+  const result = detectTampering(chain);
 
-  // Emit real-time alert if tampered
-  if (result.alert && io) {
+  // 🚨 Emit tamper alert
+  if (result.isTampered && io) {
     io.emit("alert", result);
   }
 
-  // Emit new block event
+  // 📦 Emit new block
   if (newBlock && io) {
-    io.emit("new_block", newBlock);
+    io.emit("new-block", newBlock); // 🔥 consistent naming
   }
 
   return {
     blockCreated: !!newBlock,
-    tamperAlert: result
+    tamperAlert: result,
   };
 }
 
+/**
+ * Get full blockchain
+ */
 export function getBlockchain() {
   return blockchain.getChain();
 }
 
+/**
+ * Verify chain integrity
+ */
 export function verifyBlockchain() {
   return blockchain.isValid();
 }

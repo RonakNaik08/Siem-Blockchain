@@ -1,23 +1,29 @@
-import { sha256 } from "./hash.util.js";
+import crypto from "crypto";
 
 export class Block {
-  constructor(index, logs, previousHash = "0") {
+  constructor(index, logs, previousHash) {
     this.index = index;
-    this.timestamp = Date.now();
     this.logs = logs;
     this.previousHash = previousHash;
-    this.merkleRoot = null;
-    this.hash = null;
+    this.timestamp = Date.now();
+    this.merkleRoot = "";
+    this.hash = "";
+  }
+
+  calculateHash() {
+    return crypto
+      .createHash("sha256")
+      .update(
+        this.index +
+          this.previousHash +
+          this.timestamp +
+          this.merkleRoot
+      )
+      .digest("hex");
   }
 
   finalize(merkleRoot) {
     this.merkleRoot = merkleRoot;
-
-    this.hash = sha256(
-      this.index +
-        this.timestamp +
-        this.previousHash +
-        this.merkleRoot
-    );
+    this.hash = this.calculateHash();
   }
 }
