@@ -76,10 +76,10 @@ export default function LogTable({ logs: externalLogs = [] }: { logs?: Log[] }) 
       });
     };
 
-    socket.on("new_log", onNew);
+    socket.on("new-log", onNew); // ✅ FIXED: server emits "new-log" not "new_log"
 
     return () => {
-      socket.off("new_log", onNew);
+      socket.off("new-log", onNew);
     };
   }, []);
 

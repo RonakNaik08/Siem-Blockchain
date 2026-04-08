@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 const client = axios.create({
   baseURL: API_BASE,
@@ -8,20 +8,22 @@ const client = axios.create({
 });
 
 export const api = {
-  /** Fetch most recent 200 logs from MongoDB */
+  /** Fetch most recent 100 logs from MongoDB */
   getLogs: async () => {
     const res = await client.get("/api/logs");
-    // Flatten nested logData for consistent shape
+    // Logs are stored FLAT by hashChain.service.js — but support nested logData as fallback
     return res.data.map((log: any) => ({
       _id: log._id,
-      message: log.logData?.message || "",
-      level: log.logData?.level || "info",
-      severity: log.logData?.severity || "LOW",
-      type: log.logData?.type || "",
-      ip: log.logData?.ip || null,
-      timestamp: log.logData?.timestamp || new Date(log.createdAt).getTime(),
+      id: log._id,
+      message: log.message || log.logData?.message || "",
+      level: log.level || log.logData?.level || "info",
+      severity: log.severity || log.logData?.severity || "LOW",
+      type: log.type || log.logData?.type || "",
+      source_ip: log.source_ip || log.ip || log.logData?.ip || "unknown",
+      timestamp: log.timestamp || log.logData?.timestamp || new Date(log.createdAt).getTime(),
       verified: log.verified,
       hash: log.hash,
+      prevHash: log.prevHash,
       txHash: log.txHash || null,
       blockNumber: log.blockNumber || null,
       createdAt: log.createdAt,
@@ -34,3 +36,4 @@ export const api = {
     return res.data as { isValid: boolean; currentHash: string; chainHash: string };
   },
 };
+

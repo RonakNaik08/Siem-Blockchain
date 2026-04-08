@@ -18,12 +18,15 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/services/*": [
-        "src/services/*"
-      ],
-      "@a/*": [
-        "src/app/apps/frontend/src/*"
-      ]
+      "@/*": ["src/*"],
+      "@/services/*": ["src/services/*"],
+      "@/components/*": ["src/components/*"],
+      "@/app/*": ["src/app/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/utils/*": ["src/utils/*"],
+      "@/store/*": ["src/store/*"],
+      "@/types/*": ["src/types/*"]
     },
     "plugins": [
       {

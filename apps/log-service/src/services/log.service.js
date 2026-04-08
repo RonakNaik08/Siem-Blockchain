@@ -1,3 +1,4 @@
+import LogModel from "../models/log.model.js";
 import { normalizeLog } from "../utils/normalize.util.js";
 import { createLogWithHash } from "./hashChain.service.js";
 import { addToBatch } from "./batch.service.js";
@@ -10,8 +11,8 @@ export async function processLog(rawLog) {
   // ✅ 2. Apply HASH CHAIN (IMPORTANT)
   const log = createLogWithHash(normalized);
 
-  // ✅ 3. Store in DB (uncomment when ready)
-  // await LogModel.create(log);
+  // ✅ 3. Store in DB
+  await LogModel.create(log);
 
   // ✅ 4. Send to batch → Merkle → Blockchain
   await addToBatch(log);

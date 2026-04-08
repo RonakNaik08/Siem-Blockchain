@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // ✅ FIX: turbopack root (VERY IMPORTANT)
+  // ✅ FIX: turbopack root
   turbopack: {
     root: __dirname,
   },
 
-  // ✅ modern optimization (keep this)
+  // ✅ modern optimization
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
@@ -21,6 +22,15 @@ const nextConfig: NextConfig = {
   // Env variables
   env: {
     NEXT_PUBLIC_APP_NAME: "SIEM Dashboard",
+  },
+
+  // ✅ Webpack path aliases — ensures @/* resolves to src/*
+  webpack(config) {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "@": path.resolve(__dirname, "src"),
+    };
+    return config;
   },
 
   // Security headers

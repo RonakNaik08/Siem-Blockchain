@@ -1,9 +1,18 @@
 {
-    "name": "alert-service",
-    "type": "module",
-    "dependencies": {
-      "express": "^4.18.2",
-      "axios": "^1.6.0",
-      "cors": "^2.8.5"
-    }
+  "name": "alert-service",
+  "version": "1.0.0",
+  "description": "Alert service for SIEM — delivers alerts via email, Slack, and webhook",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "nodemailer": "^6.9.0"
   }
+}

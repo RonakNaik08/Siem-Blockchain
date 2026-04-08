@@ -1,84 +1,52 @@
-import { Block } from "./block.js";
-import { buildMerkleRoot } from "./merkleTree.js";
-import { verifyChain } from "./verifier.js";
-import { storeMerkleRoot } from "./blockchainClient.js"; // 👈 NEW
+import { generateHash } from "../utils/hash.util.js";
 
 export class Blockchain {
   constructor() {
-    this.chain = [this.createGenesisBlock()];
-    this.pendingLogs = [];
-    this.blockSize = 5;
+    this.chain = [];
   }
 
-  createGenesisBlock() {
-    const block = new Block(0, [], "0");
-    block.finalize("GENESIS_ROOT");
+  addLog(log) {
+    const prevBlock = this.chain[this.chain.length - 1];
+    const prevHash = prevBlock ? prevBlock.hash : "0";
+
+    const hash = generateHash({
+      ...log,
+      prevHash,
+    });
+
+    const block = {
+      index: this.chain.length,
+      timestamp: Date.now(),
+      data: log,
+      prevHash,
+      hash,
+    };
+
+    this.chain.push(block);
     return block;
-  }
-
-  getLatestBlock() {
-    return this.chain[this.chain.length - 1];
-  }
-
-  /**
-   * Add log to buffer
-   */
-  async addLog(log) {
-    this.pendingLogs.push(log);
-
-    if (this.pendingLogs.length >= this.blockSize) {
-      return await this.createBlock(); // 👈 async now
-    }
-
-    return null;
-  }
-
-  /**
-   * Create block + Merkle root + store on blockchain
-   */
-  async createBlock() {
-    const logs = this.pendingLogs;
-
-    // ✅ IMPORTANT: use hashes, not raw logs
-    const hashes = logs.map((l) => l.hash);
-
-    const merkleRoot = buildMerkleRoot(hashes);
-
-    const newBlock = new Block(
-      this.chain.length,
-      logs,
-      this.getLatestBlock().hash
-    );
-
-    newBlock.finalize(merkleRoot);
-
-    // 🔥 STORE ROOT ON BLOCKCHAIN
-    let txHash = null;
-    try {
-      txHash = await storeMerkleRoot(merkleRoot);
-      console.log("✅ Stored on blockchain:", txHash);
-    } catch (err) {
-      console.error("❌ Blockchain store failed:", err.message);
-    }
-
-    // attach metadata
-    newBlock.txHash = txHash;
-    newBlock.timestamp = Date.now();
-
-    this.chain.push(newBlock);
-    this.pendingLogs = [];
-
-    return newBlock;
-  }
-
-  /**
-   * Full chain validation
-   */
-  isValid() {
-    return verifyChain(this.chain);
   }
 
   getChain() {
     return this.chain;
+  }
+
+  isValid() {
+    for (let i = 0; i < this.chain.length; i++) {
+      const current = this.chain[i];
+      const prev = this.chain[i - 1];
+
+      const expectedPrevHash = prev ? prev.hash : "0";
+
+      if (current.prevHash !== expectedPrevHash) return false;
+
+      const recalculated = generateHash({
+        ...current.data,
+        prevHash: current.prevHash,
+      });
+
+      if (recalculated !== current.hash) return false;
+    }
+
+    return true;
   }
 }

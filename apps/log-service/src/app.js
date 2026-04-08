@@ -3,7 +3,8 @@ import http from "http";
 import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
 import blockchainRoutes from "./routes/blockchain.routes.js";
-
+import logRoutes from "./routes/log.routes.js";
+import verifyRoutes from "./routes/verify.routes.js";
 
 // CONFIG
 import { connectDB } from "./config/db.js";
@@ -14,6 +15,9 @@ import { connectProducer, sendLog } from "./kafka/producer.js";
 
 // SOCKET
 import { initSocket, broadcast } from "./websocket/socket.server.js";
+
+// BLOCKCHAIN
+import { initBlockchain } from "./blockchain/blockchainClient.js";
 
 // UTILS
 import { logger } from "./utils/logger.util.js";
@@ -31,6 +35,9 @@ await connectProducer();
 // 🔥 CONNECT DB
 await connectDB();
 
+// ⛓ INIT BLOCKCHAIN (graceful — won't throw if node is down)
+await initBlockchain();
+
 // MIDDLEWARES
 app.use(cors());
 app.use(express.json());
@@ -41,12 +48,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// =====================================================
+// 🔗 ROUTES
+// =====================================================
 app.use("/blockchain", blockchainRoutes);
+app.use("/api/logs", logRoutes);
+app.use("/api/blockchain/verify", verifyRoutes);
+
 // =====================================================
 // 🔥 MAIN LOG INGESTION ROUTE (KAFKA + REAL-TIME)
 // =====================================================
 
-app.post("/api/logs", async (req, res) => {
+app.post("/api/ingest", async (req, res) => {
   try {
     const log = {
       id: uuidv4(),

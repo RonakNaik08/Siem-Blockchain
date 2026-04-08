@@ -3,12 +3,17 @@ import axios from "axios";
 
 const router = express.Router();
 
-router.get("/:id", async (req, res) => {
-  const response = await axios.get(
-    `http://localhost:5001/verify/${req.params.id}`
-  );
-
-  res.json(response.data);
+// POST /api/verify  body: { logId, hash }
+router.post("/", async (req, res) => {
+  try {
+    const { data } = await axios.post(
+      `${process.env.LOG_SERVICE_URL || "http://localhost:4000"}/blockchain/verify`,
+      req.body
+    );
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: "Verification service unavailable" });
+  }
 });
 
 export default router;

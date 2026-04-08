@@ -1,9 +1,9 @@
 import { Kafka } from "kafkajs";
-import { broadcast } from "../../websocket-client.js";
+import { broadcast } from "../websocket/socket.server.js";
 
 const kafka = new Kafka({
-  clientId: "stream-processor",
-  brokers: ["localhost:9092"],
+  clientId: "log-service-consumer",
+  brokers: [process.env.KAFKA_BROKERS || "localhost:9092"],
 });
 
 const consumer = kafka.consumer({ groupId: "siem-group" });
@@ -12,26 +12,32 @@ export const startConsumer = async () => {
   await consumer.connect();
   await consumer.subscribe({ topic: "logs", fromBeginning: false });
 
+  console.log("✅ Kafka consumer connected");
+
   await consumer.run({
     eachMessage: async ({ message }) => {
-      const log = JSON.parse(message.value.toString());
+      try {
+        const log = JSON.parse(message.value.toString());
 
-      // 🔥 SIMPLE DETECTION ENGINE
-      const threat = detectThreat(log);
+        // 🔥 SIMPLE DETECTION ENGINE
+        const threat = detectThreat(log);
 
-      const enrichedLog = {
-        ...log,
-        threat,
-      };
+        const enrichedLog = {
+          ...log,
+          threat,
+        };
 
-      // 🚀 SEND TO FRONTEND (REAL-TIME)
-      broadcast(enrichedLog);
+        // 🚀 SEND TO FRONTEND (REAL-TIME)
+        broadcast(enrichedLog);
+      } catch (err) {
+        console.error("❌ Error processing Kafka message:", err.message);
+      }
     },
   });
 };
 
 function detectThreat(log) {
-  if (log.message.includes("failed")) return "brute-force";
-  if (log.message.includes("unauthorized")) return "intrusion";
+  if (log.message?.includes("failed")) return "brute-force";
+  if (log.message?.includes("unauthorized")) return "intrusion";
   return null;
 }
